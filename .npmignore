@@ -1,0 +1,15 @@
+.editorconfig
+
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+
+test/
+coverage/
+.travis.yml
+
+api/
+.jsdocrc
+*.svg
+.cache

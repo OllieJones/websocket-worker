@@ -1,0 +1,140 @@
+{
+  "name": "websocket-worker",
+  "version": "0.2.0",
+  "description": "Webworker code to handle websocket interaction",
+  "main": "websocket.js",
+  "scripts": {
+    "spell": "yaspeller-ci *.md test/demo/build/api/*.html",
+    "clean": "rimraf coverage/ test/demo/build/",
+    "lint": "standard *.js js/*js test/{**/,}*.js",
+    "api": "documentation build -o test/demo/build/api/ -f html --theme node_modules/documentation-theme-light *.js",
+    "unit": "jest --coverage",
+    "test": "npm run unit && npm run lint && size-limit && npm run build && npm run spell",
+    "start": "parcel serve -d ./test/demo/build ./test/demo/index.pug ./test/demo/polyfill.js --open",
+    "build": "yarn clean && yarn api && NODE_ENV=production node ./test/demo/build.js"
+  },
+  "keywords": [
+    "websocket",
+    "webworker"
+  ],
+  "author": "Oliver Jones <olliejones@gmail.com>",
+  "license": "MIT",
+  "repository": "olliejones/websocket-worker",
+  "devDependencies": {
+    "@logux/eslint-config": "^29.0.1",
+    "clean-publish": "^1.1.2",
+    "documentation": "^12.0.1",
+    "documentation-theme-light": "^1.1.0",
+    "eslint-config-standard": "^13.0.1",
+    "eslint-plugin-es5": "^1.4.1",
+    "eslint-plugin-import": "^2.18.0",
+    "eslint-plugin-import-helpers": "^1.0.2",
+    "eslint-plugin-jest": "^22.7.2",
+    "eslint-plugin-node": "^9.1.0",
+    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-security": "^1.4.0",
+    "eslint-plugin-standard": "^4.0.0",
+    "husky": "^3.0.0",
+    "install": "^0.13.0",
+    "jest": "^24.8.0",
+    "lint-staged": "^9.2.0",
+    "nanodelay": "^0.1.4",
+    "npm": "^6.10.1",
+    "parcel-bundler": "^1.12.3",
+    "posthtml": "^0.11.4",
+    "pug": "^2.0.4",
+    "rimraf": "^2.6.3",
+    "size-limit": "^1.3.7",
+    "yaspeller-ci": "^1.0.1"
+  },
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "statements": 100
+      }
+    }
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": [
+        "lint-staged"
+      ]
+    }
+  },
+  "lint-staged": {
+    "*.md": "yaspeller-ci",
+    "*.js": "eslint"
+  },
+  "size-limit": [
+    {
+      "path": "index.js",
+      "limit": "1.1 KB"
+    }
+  ],
+  "eslintConfig": {
+    "extends": "@logux/eslint-config/browser",
+    "globals": {
+      "onmessage": true
+    },
+    "overrides": [
+      {
+        "files": [
+          "test/**/*"
+        ],
+        "rules": {
+          "es5/no-shorthand-properties": "off",
+          "es5/no-arrow-functions": "off",
+          "es5/no-destructuring": "off",
+          "es5/no-block-scoping": "off",
+          "es5/no-es6-methods": "off",
+          "es5/no-classes": "off",
+          "es5/no-spread": "off"
+        }
+      }
+    ]
+  },
+  "yaspeller": {
+    "lang": "en",
+    "ignoreCapitalization": true,
+    "dictionary": [
+      "MediaRecorder",
+      "Versioning",
+      "polyfill",
+      "js",
+      "isTypeSupported",
+      "mimeType",
+      "MediaStream",
+      "dataavailable",
+      "addEventListener",
+      "dispatchEvent",
+      "removeEventListener",
+      "timeslice",
+      "notSupported",
+      "requestData",
+      "KB",
+      "gzipped",
+      "webpack",
+      "Chua",
+      "polyfill’s",
+      "polyfilled",
+      "polyfilling",
+      "GMT",
+      "Mon",
+      "Tue",
+      "Thu",
+      "Fri",
+      "Feb",
+      "Harsha",
+      "Gangisetty",
+      "Shunsuke",
+      "Mano",
+      "floydback",
+      "timeslice",
+      "dataavailable"
+    ]
+  },
+  "dependencies": {
+    "acorn": "^7.1.0",
+    "standard": "^14.3.1"
+  }
+}
