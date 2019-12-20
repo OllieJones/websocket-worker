@@ -4,6 +4,68 @@
 // noinspection ES6ConvertVarToLetConst
 var socketSerial = 0
 var socketList = {}
+var ws
+
+// eslint-disable-next-line no-unused-vars,no-undef
+onmessage = function (e) {
+  console.log(e.data)
+  var cmd = e.data.cmd
+  var serial
+  switch (cmd) {
+    case 'new' :
+      try {
+        ws = new WebSocket(e.data.url)
+        var options = e.data.options
+        if (options) {
+          for (var key in options) {
+            if (!hasOwn.call(options, key)) continue
+            ws[key] = options[key]
+          }
+        }
+        socketSerial += 1
+        ws.socketSerial = socketSerial
+        socketList[socketSerial] = ws
+
+        ws.onopen = onopen
+        ws.onmessage = onpayload
+        ws.onerror = onerror
+        ws.onclose = onclose
+        postResult(cmd, ws, null)
+      } catch (error) {
+        error.request = 'new'
+        postResult('exception', null, error)
+      }
+      break
+    case 'send':
+      try {
+        serial = e.data.socketSerial
+        if (socketList[serial]) {
+          ws = socketList[serial]
+          ws.send(e.data.data)
+        } else {
+          postResult('error', null, { request: 'send', diagnostic: 'no such WebSocket' })
+        }
+      } catch (error) {
+        error.request = 'send'
+        postResult('exception', null, error)
+      }
+      break
+    case 'close':
+      try {
+        serial = e.data.socketSerial
+        if (socketList[serial]) {
+          ws = socketList[serial]
+          ws.close()
+        } else {
+          postResult('error', null, { request: 'close', diagnostic: 'no such WebSocket' })
+        }
+      } catch (error) {
+        error.request = 'close'
+        postResult('exception', null, error)
+      }
+      break
+  }
+}
 
 var hasOwn = Object.prototype.hasOwnProperty
 
@@ -60,66 +122,4 @@ function onclose (event) {
   postResult('onclose', event.target, options)
   var socketSerial = event.target.socketSerial
   delete socketList[socketSerial]
-}
-
-// eslint-disable-next-line no-unused-vars
-function onmessage (e) {
-  console.log(e.data)
-  var cmd = e.data.cmd
-  var ws
-  var serial
-  switch (cmd) {
-    case 'new' :
-      try {
-        ws = new WebSocket(e.data.url)
-        var options = e.data.options
-        if (options) {
-          for (var key in options) {
-            if (!hasOwn.call(options, key)) continue
-            ws[key] = options[key]
-          }
-        }
-        socketSerial += 1
-        ws.socketSerial = socketSerial
-        socketList[socketSerial] = ws
-
-        ws.onopen = onopen
-        ws.onmessage = onpayload
-        ws.onerror = onerror
-        ws.onclose = onclose
-        postResult(cmd, ws, null)
-      } catch (error) {
-        error.request = 'new'
-        postResult('exception', null, error)
-      }
-      break
-    case 'send':
-      try {
-        serial = e.data.socketSerial
-        if (socketList[serial]) {
-          ws = socketList[serial]
-          ws.send(e.data.data)
-        } else {
-          postResult('error', null, { request: 'send', diagnostic: 'no such WebSocket' })
-        }
-      } catch (error) {
-        error.request = 'send'
-        postResult('exception', null, error)
-      }
-      break
-    case 'close':
-      try {
-        serial = e.data.socketSerial
-        if (socketList[serial]) {
-          ws = socketList[serial]
-          ws.close()
-        } else {
-          postResult('error', null, { request: 'close', diagnostic: 'no such WebSocket' })
-        }
-      } catch (error) {
-        error.request = 'close'
-        postResult('exception', null, error)
-      }
-      break
-  }
 }

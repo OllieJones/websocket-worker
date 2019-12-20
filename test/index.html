@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocketWorker test</title>
+</head>
+<body>
+
+<div id="log" >
+
+</div>
+
+
+<script src="../websocket.js"></script>
+
+<script>
+  window.onload = function () {
+    var url = 'wss://echo.websocket.org'
+
+    wss = new WebSocketWorker(url)
+
+    wss.onmessage = function (event) {
+      console.log (event.data)
+      wss.close()
+    }
+    wss.onopen  = function () {
+      console.log ('opened')
+      wss.send ('Hello, Websocket World')
+    }
+    wss.onclose = function () {
+      console.log ('closed')
+    }
+    wss.onerror = function (event) {
+      console.log ('error', event)
+    }
+
+  }
+</script>
+
+</body>
+</html>

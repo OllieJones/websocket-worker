@@ -3,7 +3,7 @@
 /* eslint-disable no-unused-vars */
 /* global  Worker, MessageEvent, Event, CloseEvent */
 
-window.WebSocketWorker = function () {
+window.WebSocketWorker = (function () {
   /**
    *
    * @param {string} url
@@ -11,45 +11,43 @@ window.WebSocketWorker = function () {
    * @constructor
    */
   function WebSocketWorker (url, options) {
-    var _worker = new Worker('websocket-worker.js')
+    this._worker = new Worker('/websocket-worker.js')
     /**
      * websocket's readystate
      * @type {number}
      */
-    var readyState = -1
+    this.readyState = -1
     /**
      *
      * @type {string} 'blob' | 'arraybuffer'
      */
-    var binaryType = (options && typeof options.binaryType === 'string') ? options.binaryType : 'blob'
+    this.binaryType = (options && typeof options.binaryType === 'string') ? options.binaryType : 'blob'
 
-    var onmessage
-    var onopen
-    var onerror
-    var onclose
+    this.onmessage = null
+    this.onopen = null
+    this.onerror = null
+    this.onclose = null
 
-    var _socketSerial = -1
+    this._socketSerial = -1
     /* support for event delivery */
     this._em = document.createDocumentFragment()
     this._eventListenerCounts = []
 
-    _worker.onMessage = function (e) {
+    this._worker.onmessage = function (e) {
       var event = null
       var data = e.data
       if (!data || typeof data.cmd !== 'string') {
         throw (new Error('unexpected message content'))
       }
       var cmd = data.cmd
-      readyState = data.readyState
-      if (_socketSerial) {
-        if (_socketSerial !== Number(data.socketSerial)) {
+      this.readyState = data.readyState
+      if (this._socketSerial) {
+        if (this._socketSerial !== Number(data.socketSerial)) {
           throw (new Error('socketSerial mismatch'))
-        } else _socketSerial = Number(data.socketSerial)
-      }
+        }
+      } else this._socketSerial = Number(data.socketSerial)
       switch (cmd) {
         case 'new':
-          _socketSerial = data.socketSerial
-          readyState = data.readyState
           break
 
         case 'onopen' :
@@ -94,80 +92,82 @@ window.WebSocketWorker = function () {
       }
       if (event) this.dispatchEvent(event)
     }
-    _worker.postMessage({ cmd: 'new', url: url, options: options })
+    this._worker.postMessage({ cmd: 'new', url: url, options: options })
 
-    WebSocketWorker.prototype = {
-      send: function (payload) {
-        _worker.postMessage(
-          {
-            cmd: 'send',
-            socketSerial: _socketSerial,
-            payload: payload
-          })
-      },
-      close: function () {
-        _worker.postMessage(
-          {
-            cmd: 'close',
-            socketSerial: _socketSerial
-          })
-      },
-      /**
-       * Add listener for specified event type.
-       *
-       * @param {"open"|"close"|"message"|"error"}
-       * type Event type.
-       * @param {function} listener The listener function.
-       *
-       * @return {undefined}
-       *
-       * @example
-       * recorder.addEventListener('dataavailable', function (e) {
-       *   audio.src = URL.createObjectURL(e.data)
-       * })
-       */
-      addEventListener: function addEventListener () {
-        const name = arguments[0]
-        if (typeof name === 'string') {
-          this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
-            ? this._eventListenerCounts[name] + 1
-            : 1
-        }
-        this._em.addEventListener.apply(this._em, arguments)
-      },
+    return this
+  }
 
-      /**
-       * Remove event listener.
-       *
-       * @param {"open"|"close"|"message"|"error"}
-       * type Event type.
-       * @param {function} listener The same function used in `addEventListener`.
-       *
-       * @return {function} the removed function
-       */
-      removeEventListener: function removeEventListener () {
-        const name = arguments[0]
-        if (typeof name === 'string') {
-          this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
-            ? this._eventListenerCounts[name] - 1
-            : 0
-        }
-
-        return this._em.removeEventListener.apply(this._em, arguments)
-      },
-
-      /**
-       * Calls each of the listeners registered for a given event.
-       *
-       * @param {Event} event The event object.
-       *
-       * @return {boolean} Is event was no canceled by any listener.
-       */
-      dispatchEvent: function dispatchEvent () {
-        this._em.dispatchEvent.apply(this._em, arguments)
+  WebSocketWorker.prototype = {
+    send: function (payload) {
+      this._worker.postMessage(
+        {
+          cmd: 'send',
+          socketSerial: this._socketSerial,
+          payload: payload
+        })
+    },
+    close: function () {
+      this._worker.postMessage(
+        {
+          cmd: 'close',
+          socketSerial: this._socketSerial
+        })
+    },
+    /**
+     * Add listener for specified event type.
+     *
+     * @param {"open"|"close"|"message"|"error"}
+     * type Event type.
+     * @param {function} listener The listener function.
+     *
+     * @return {undefined}
+     *
+     * @example
+     * recorder.addEventListener('dataavailable', function (e) {
+     *   audio.src = URL.createObjectURL(e.data)
+     * })
+     */
+    addEventListener: function addEventListener () {
+      const name = arguments[0]
+      if (typeof name === 'string') {
+        this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
+          ? this._eventListenerCounts[name] + 1
+          : 1
       }
+      this._em.addEventListener.apply(this._em, arguments)
+    },
+
+    /**
+     * Remove event listener.
+     *
+     * @param {"open"|"close"|"message"|"error"}
+     * type Event type.
+     * @param {function} listener The same function used in `addEventListener`.
+     *
+     * @return {function} the removed function
+     */
+    removeEventListener: function removeEventListener () {
+      const name = arguments[0]
+      if (typeof name === 'string') {
+        this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
+          ? this._eventListenerCounts[name] - 1
+          : 0
+      }
+
+      return this._em.removeEventListener.apply(this._em, arguments)
+    },
+
+    /**
+     * Calls each of the listeners registered for a given event.
+     *
+     * @param {Event} event The event object.
+     *
+     * @return {boolean} Is event was no canceled by any listener.
+     */
+    dispatchEvent: function dispatchEvent () {
+      this._em.dispatchEvent.apply(this._em, arguments)
     }
   }
 
   return WebSocketWorker
-}
+})()
