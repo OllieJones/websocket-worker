@@ -17,8 +17,8 @@
   window.onload = function () {
     var count = 5
     var echoWebSocketServer = 'wss://echo.websocket.org'
-    var arr = Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-    var blob = new Blob(arr)
+    var arr = new Uint8Array(1000)
+    var blob = new Blob([arr], {type:'application/binary'})
 
     wss = new WebSocketWorker(echoWebSocketServer)
     wss.binaryType = 'arraybuffer'
@@ -28,7 +28,7 @@
       count -= 1
       if (count === 2) {
         wss.send(arr.buffer)
-      } else if (count === 3){
+      } else if (count === 1){
         wss.send(blob)
       } else wss.send('followon ' + count)
 

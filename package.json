@@ -1,6 +1,6 @@
 {
   "name": "websocket-worker",
-  "version": "0.2.0",
+  "version": "0.7.0",
   "description": "Webworker code to handle websocket interaction",
   "main": "websocket.js",
   "scripts": {

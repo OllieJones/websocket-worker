@@ -1,7 +1,7 @@
 'use strict'
 // noinspection JSUnusedLocalSymbols
 /* eslint-disable no-unused-vars */
-/* global  Worker, MessageEvent, Event, CloseEvent, setTimeout */
+/* global  Worker, Event, setTimeout */
 
 window.WebSocketWorker = (function () {
   /**
@@ -41,11 +41,23 @@ window.WebSocketWorker = (function () {
       delete options.updateInterval
     }
 
+    /* Redmond Middle School Science Project compatibility */
+    wsw._eventMaker = null
+    if (typeof Event === 'function') {
+      wsw._eventMaker = function (type) {
+        return new Event(type)
+      }
+    } else {
+      wsw._eventMaker = function (type) {
+        return {type: type}
+      }
+    }
+
     wsw._worker.onmessage = function (e) {
       var event = null
       if (e.data && !e.data.cmd) {
         /* no "cmd" item: transferable data payload */
-        event = new Event('message')
+        event = wsw._eventMaker('message')
         // noinspection JSUnresolvedVariable
         event.data = e.data
         if (typeof wsw.onmessage === 'function') wsw.onmessage(event)
@@ -64,12 +76,12 @@ window.WebSocketWorker = (function () {
             break
 
           case 'onopen' :
-            event = new Event('open')
+            event = wsw._eventMaker('open')
             if (typeof wsw.onopen === 'function') wsw.onopen(event)
             break
 
           case 'onclose' :
-            event = new Event('close')
+            event = wsw._eventMaker('close')
             event.code = data.code
             event.reason = data.reason
             event.wasClean = data.wasClean
@@ -81,13 +93,13 @@ window.WebSocketWorker = (function () {
             break
 
           case 'onerror' :
-            event = new Event('error')
+            event = wsw._eventMaker('message')
             if (typeof wsw.onerror === 'function') wsw.onerror(event)
             break
 
           case 'exception':
             console.error('websocket-exception', data)
-            event = new Event('websocket-exception')
+            event = wsw._eventMaker('websocket-exception')
             event.request = data.request
             event.diagnostic = data
             break
