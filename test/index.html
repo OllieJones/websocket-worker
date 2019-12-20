@@ -15,20 +15,31 @@
 
 <script>
   window.onload = function () {
-    var url = 'wss://echo.websocket.org'
+    var count = 5
+    var echoWebSocketServer = 'wss://echo.websocket.org'
+    var arr = Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    var blob = new Blob(arr)
 
-    wss = new WebSocketWorker(url)
+    wss = new WebSocketWorker(echoWebSocketServer)
+    wss.binaryType = 'arraybuffer'
 
     wss.onmessage = function (event) {
-      console.log (event.data)
-      wss.close()
+      console.log ('Received', event.data)
+      count -= 1
+      if (count === 2) {
+        wss.send(arr.buffer)
+      } else if (count === 3){
+        wss.send(blob)
+      } else wss.send('followon ' + count)
+
+      if (count <= 0) wss.close()
     }
     wss.onopen  = function () {
       console.log ('opened')
       wss.send ('Hello, Websocket World')
     }
-    wss.onclose = function () {
-      console.log ('closed')
+    wss.onclose = function (e) {
+      console.log ('closed', e)
     }
     wss.onerror = function (event) {
       console.log ('error', event)

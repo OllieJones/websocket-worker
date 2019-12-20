@@ -1,171 +1,130 @@
 'use strict'
 // noinspection JSUnusedLocalSymbols
 /* eslint-disable no-unused-vars */
-/* global  Worker, MessageEvent, Event, CloseEvent */
+/* global  Worker, MessageEvent, Event, CloseEvent, setTimeout */
 
 window.WebSocketWorker = (function () {
   /**
    *
    * @param {string} url
-   * @param {object} options  {binaryType:'blob'|'arraybuffer'}
+   * @param {object} options
    * @constructor
    */
   function WebSocketWorker (url, options) {
-    this._worker = new Worker('/websocket-worker.js')
+    var wsw = this
+
+    wsw._worker = new Worker('/websocket-worker.js')
+    wsw.url = url
     /**
      * websocket's readystate
      * @type {number}
      */
-    this.readyState = -1
+    wsw.readyState = -1
     /**
      *
      * @type {string} 'blob' | 'arraybuffer'
      */
-    this.binaryType = (options && typeof options.binaryType === 'string') ? options.binaryType : 'blob'
+    wsw.binaryType = null
 
-    this.onmessage = null
-    this.onopen = null
-    this.onerror = null
-    this.onclose = null
+    wsw.bufferedAmount = 0
+    wsw.extensions = ''
+    wsw.protocol = ''
 
-    this._socketSerial = -1
-    /* support for event delivery */
-    this._em = document.createDocumentFragment()
-    this._eventListenerCounts = []
+    wsw.onmessage = null
+    wsw.onopen = null
+    wsw.onerror = null
+    wsw.onclose = null
 
-    this._worker.onmessage = function (e) {
-      var event = null
-      var data = e.data
-      if (!data || typeof data.cmd !== 'string') {
-        throw (new Error('unexpected message content'))
-      }
-      var cmd = data.cmd
-      this.readyState = data.readyState
-      if (this._socketSerial) {
-        if (this._socketSerial !== Number(data.socketSerial)) {
-          throw (new Error('socketSerial mismatch'))
-        }
-      } else this._socketSerial = Number(data.socketSerial)
-      switch (cmd) {
-        case 'new':
-          break
-
-        case 'onopen' :
-          event = new Event('open')
-          if (typeof this.onopen === 'function') this.onopen(event)
-          break
-
-        case 'onclose' :
-          event = new CloseEvent('close')
-          if (typeof this.onclose === 'function') this.onclose(event)
-          break
-
-        case 'onerror' :
-          event = new Event('error')
-          if (typeof this.onerror === 'function') this.onerror(event)
-          break
-
-        case 'onmessage' :
-          event = new MessageEvent('message')
-          event.data = data.payload
-          if (typeof this.onmessage === 'function') this.onmessage(event)
-          break
-
-        case 'error' :
-          console.error('websocket-error', data)
-          event = new Event('websocket-error')
-          event.request = data.request
-          event.diagnostic = data.diagnostic
-          if (typeof this.onerror === 'function') this.onerror(event)
-          break
-
-        case 'exception':
-          console.error('websocket-exception', data)
-          event = new Event('websocket-exception')
-          event.request = data.request
-          event.diagnostic = data
-          break
-
-        default:
-          console.error('websocket-unexpected-message', e)
-          break
-      }
-      if (event) this.dispatchEvent(event)
+    wsw._updateInterval = null
+    if (options && typeof options.updateInterval === 'number') {
+      wsw._updateInterval = options.updateInterval
+      delete options.updateInterval
     }
-    this._worker.postMessage({ cmd: 'new', url: url, options: options })
+
+    wsw._worker.onmessage = function (e) {
+      var event = null
+      if (e.data && !e.data.cmd) {
+        /* no "cmd" item: transferable data payload */
+        event = new Event('message')
+        // noinspection JSUnresolvedVariable
+        event.data = e.data
+        if (typeof wsw.onmessage === 'function') wsw.onmessage(event)
+      } else {
+        var data = e.data
+        if (!data || typeof data.cmd !== 'string') {
+          throw (new Error('unexpected message content'))
+        }
+        var cmd = data.cmd
+        wsw.bufferedAmount = data.bufferedAmount
+        wsw.extensions = data.extensions
+        wsw.protocol = data.protocol
+        wsw.readyState = data.readyState
+        switch (cmd) {
+          case 'new':
+            break
+
+          case 'onopen' :
+            event = new Event('open')
+            if (typeof wsw.onopen === 'function') wsw.onopen(event)
+            break
+
+          case 'onclose' :
+            event = new Event('close')
+            event.code = data.code
+            event.reason = data.reason
+            event.wasClean = data.wasClean
+            if (typeof wsw.onclose === 'function') wsw.onclose(event)
+            wsw._worker.terminate()
+            break
+
+          case 'statusupdate' :
+            break
+
+          case 'onerror' :
+            event = new Event('error')
+            if (typeof wsw.onerror === 'function') wsw.onerror(event)
+            break
+
+          case 'exception':
+            console.error('websocket-exception', data)
+            event = new Event('websocket-exception')
+            event.request = data.request
+            event.diagnostic = data
+            break
+
+          default:
+            console.error('websocket-unexpected-message', e)
+            break
+        }
+      }
+    }
+
+    /* tell the worker to open the WebSocket,
+     * next time through the loop (to pick up binaryType) */
+    setTimeout(function () {
+      wsw._worker.postMessage(
+        {
+          cmd: 'new',
+          url: wsw.url,
+          binaryType: wsw.binaryType,
+          updateInterval: wsw._updateInterval
+        })
+    }, 0)
 
     return this
   }
 
   WebSocketWorker.prototype = {
     send: function (payload) {
-      this._worker.postMessage(
-        {
-          cmd: 'send',
-          socketSerial: this._socketSerial,
-          payload: payload
-        })
+      /* use transferable data if possible */
+      if (payload.buffer) this._worker.postMessage(payload.buffer, [payload.buffer])
+      else this._worker.postMessage(payload)
     },
     close: function () {
       this._worker.postMessage(
         {
-          cmd: 'close',
-          socketSerial: this._socketSerial
+          cmd: 'close'
         })
-    },
-    /**
-     * Add listener for specified event type.
-     *
-     * @param {"open"|"close"|"message"|"error"}
-     * type Event type.
-     * @param {function} listener The listener function.
-     *
-     * @return {undefined}
-     *
-     * @example
-     * recorder.addEventListener('dataavailable', function (e) {
-     *   audio.src = URL.createObjectURL(e.data)
-     * })
-     */
-    addEventListener: function addEventListener () {
-      const name = arguments[0]
-      if (typeof name === 'string') {
-        this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
-          ? this._eventListenerCounts[name] + 1
-          : 1
-      }
-      this._em.addEventListener.apply(this._em, arguments)
-    },
-
-    /**
-     * Remove event listener.
-     *
-     * @param {"open"|"close"|"message"|"error"}
-     * type Event type.
-     * @param {function} listener The same function used in `addEventListener`.
-     *
-     * @return {function} the removed function
-     */
-    removeEventListener: function removeEventListener () {
-      const name = arguments[0]
-      if (typeof name === 'string') {
-        this._eventListenerCounts[name] = (typeof this._eventListenerCounts[name] === 'number')
-          ? this._eventListenerCounts[name] - 1
-          : 0
-      }
-
-      return this._em.removeEventListener.apply(this._em, arguments)
-    },
-
-    /**
-     * Calls each of the listeners registered for a given event.
-     *
-     * @param {Event} event The event object.
-     *
-     * @return {boolean} Is event was no canceled by any listener.
-     */
-    dispatchEvent: function dispatchEvent () {
-      this._em.dispatchEvent.apply(this._em, arguments)
     }
   }
 
